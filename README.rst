@@ -32,6 +32,11 @@ PyPI.
 Running the Tests
 ------------------------------------
 
+Set up the tests with:
+
+    pip install -r tests_requirements.txt
+    python setup.py install
+
 You can run the tests with::
 
     python setup.py test
