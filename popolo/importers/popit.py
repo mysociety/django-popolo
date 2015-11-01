@@ -169,7 +169,7 @@ class PopItImporter(object):
         Organization = self.get_popolo_model_class('Organization')
         existing = self.get_existing_django_object('organization', org_data['id'])
         if existing is None:
-            result = Organization()
+            result = Organization(id=org_data['id'])
         else:
             result = existing
         result.name = org_data['name']
@@ -230,7 +230,7 @@ class PopItImporter(object):
         Post = self.get_popolo_model_class('Post')
         existing = self.get_existing_django_object('post', post_data['id'])
         if existing is None:
-            result = Post()
+            result = Post(id=post_data['id'])
         else:
             result = existing
         result.label = post_data['label']
@@ -271,7 +271,7 @@ class PopItImporter(object):
         Person = self.get_popolo_model_class('Person')
         existing = self.get_existing_django_object('person', person_data['id'])
         if existing is None:
-            result = Person()
+            result = Person(id=person_data['id'])
         else:
             result = existing
         result.name = person_data['name']
@@ -400,7 +400,7 @@ class PopItImporter(object):
         Area = self.get_popolo_model_class('Area')
         existing = self.get_existing_django_object('area', area_data['id'])
         if existing is None:
-            result = Area()
+            result = Area(id=area_data['id'])
         else:
             result = existing
         result.name = area_data.get('name') or ''
