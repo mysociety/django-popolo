@@ -1,3 +1,11 @@
+0.0.4
+    * Fix PopIt importer so it can be used properly from migrations
+    * Switch membership IDs to strings for importing from PopIt
+    * Fix PopIt importer so the same ID is used after import
+    * Fix PopIt importer so that it sets start_date / end_date
+      on memberships
+0.0.3
+    * Rebase onto recent upstream changes
 0.0.2
     * Python 3 compatibility changes (James McKinney).
 0.0.1
