@@ -12,7 +12,7 @@ class MembershipInline(admin.StackedInline):
 class PersonAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {
-            'fields': ('name', 'gender', 'birth_date', 'death_date')
+            'fields': ('id', 'name', 'gender', 'birth_date', 'death_date')
         }),
         ('Biography', {
             'classes': ('collapse',),
@@ -50,7 +50,7 @@ class PostAdmin(admin.ModelAdmin):
     model = models.Post
     fieldsets = (
         (None, {
-            'fields': ('label','role', 'start_date', 'end_date')
+            'fields': ('id', 'label','role', 'start_date', 'end_date')
         }),
         ('Details', {
             'classes': ('collapse',),
@@ -64,7 +64,7 @@ class PostAdmin(admin.ModelAdmin):
 class OrganizationAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {
-            'fields': ('name', 'founding_date', 'dissolution_date')
+            'fields': ('id', 'name', 'founding_date', 'dissolution_date')
         }),
         ('Details', {
             'classes': ('collapse',),
