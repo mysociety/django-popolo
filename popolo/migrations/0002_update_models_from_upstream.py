@@ -21,8 +21,8 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('object_id', models.PositiveIntegerField(null=True, blank=True)),
-                ('start_date', models.CharField(validators=[django.core.validators.RegexValidator(regex=b'^[0-9]{4}(-[0-9]{2}){0,2}$', message=b'Date has wrong format'), popolo.behaviors.models.validate_partial_date], max_length=10, blank=True, help_text='The date when the validity of the item starts', null=True, verbose_name='start date')),
-                ('end_date', models.CharField(validators=[django.core.validators.RegexValidator(regex=b'^[0-9]{4}(-[0-9]{2}){0,2}$', message=b'Date has wrong format'), popolo.behaviors.models.validate_partial_date], max_length=10, blank=True, help_text='The date when the validity of the item ends', null=True, verbose_name='end date')),
+                ('start_date', models.CharField(validators=[django.core.validators.RegexValidator(regex='^[0-9]{4}(-[0-9]{2}){0,2}$', message='Date has wrong format'), popolo.behaviors.models.validate_partial_date], max_length=10, blank=True, help_text='The date when the validity of the item starts', null=True, verbose_name='start date')),
+                ('end_date', models.CharField(validators=[django.core.validators.RegexValidator(regex='^[0-9]{4}(-[0-9]{2}){0,2}$', message='Date has wrong format'), popolo.behaviors.models.validate_partial_date], max_length=10, blank=True, help_text='The date when the validity of the item ends', null=True, verbose_name='end date')),
                 ('created_at', model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, verbose_name='creation time', editable=False)),
                 ('updated_at', model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, verbose_name='last modification time', editable=False)),
                 ('name', models.CharField(help_text='A primary name', max_length=256, verbose_name='name', blank=True)),
@@ -90,7 +90,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='contactdetail',
             name='contact_type',
-            field=models.CharField(help_text="A type of medium, e.g. 'fax' or 'email'", max_length=12, verbose_name='type', choices=[(b'ADDRESS', 'Address'), (b'EMAIL', 'Email'), (b'URL', 'Url'), (b'MAIL', 'Snail mail'), (b'TWITTER', 'Twitter'), (b'FACEBOOK', 'Facebook'), (b'PHONE', 'Telephone'), (b'MOBILE', 'Mobile'), (b'TEXT', 'Text'), (b'VOICE', 'Voice'), (b'FAX', 'Fax'), (b'CELL', 'Cell'), (b'VIDEO', 'Video'), (b'PAGER', 'Pager'), (b'TEXTPHONE', 'Textphone')]),
+            field=models.CharField(help_text="A type of medium, e.g. 'fax' or 'email'", max_length=12, verbose_name='type', choices=[('ADDRESS', 'Address'), ('EMAIL', 'Email'), ('URL', 'Url'), ('MAIL', 'Snail mail'), ('TWITTER', 'Twitter'), ('FACEBOOK', 'Facebook'), ('PHONE', 'Telephone'), ('MOBILE', 'Mobile'), ('TEXT', 'Text'), ('VOICE', 'Voice'), ('FAX', 'Fax'), ('CELL', 'Cell'), ('VIDEO', 'Video'), ('PAGER', 'Pager'), ('TEXTPHONE', 'Textphone')]),
         ),
         migrations.AlterField(
             model_name='contactdetail',
@@ -175,12 +175,12 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='organization',
             name='dissolution_date',
-            field=models.CharField(validators=[django.core.validators.RegexValidator(regex=b'^[0-9]{4}(-[0-9]{2}){0,2}$', message=b'dissolution date must follow the given pattern: ^[0-9]{4}(-[0-9]{2}){0,2}$', code=b'invalid_dissolution_date')], max_length=10, blank=True, help_text='A date of dissolution', null=True, verbose_name='dissolution date'),
+            field=models.CharField(validators=[django.core.validators.RegexValidator(regex='^[0-9]{4}(-[0-9]{2}){0,2}$', message='dissolution date must follow the given pattern: ^[0-9]{4}(-[0-9]{2}){0,2}$', code='invalid_dissolution_date')], max_length=10, blank=True, help_text='A date of dissolution', null=True, verbose_name='dissolution date'),
         ),
         migrations.AlterField(
             model_name='organization',
             name='founding_date',
-            field=models.CharField(validators=[django.core.validators.RegexValidator(regex=b'^[0-9]{4}(-[0-9]{2}){0,2}$', message=b'founding date must follow the given pattern: ^[0-9]{4}(-[0-9]{2}){0,2}$', code=b'invalid_founding_date')], max_length=10, blank=True, help_text='A date of founding', null=True, verbose_name='founding date'),
+            field=models.CharField(validators=[django.core.validators.RegexValidator(regex='^[0-9]{4}(-[0-9]{2}){0,2}$', message='founding date must follow the given pattern: ^[0-9]{4}(-[0-9]{2}){0,2}$', code='invalid_founding_date')], max_length=10, blank=True, help_text='A date of founding', null=True, verbose_name='founding date'),
         ),
         migrations.AlterField(
             model_name='organization',
