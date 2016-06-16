@@ -85,6 +85,7 @@ class PopItImporter(object):
         area_id_to_parent_area_id = {}
         def update_optional_area(object_data):
             area_data = object_data.get('area')
+            area_id = object_data.get('area_id')
             area = None
             if area_data:
                 if not area_data.get('id'):
@@ -95,7 +96,22 @@ class PopItImporter(object):
                 with show_data_on_error('area_data', area_data):
                     area_id, area = self.update_area(area_data)
                     area_id_to_django_object[area_id] = area
+            elif area_id:
+                #if we have an area_id instead of an inline area
+                area = self.get_existing_django_object('area', area_id)
             return area
+        self.events = {}
+        # store events in a temp local dict:
+        if 'events' in data:
+            event_id_to_django_object = {}
+            for event_data in data['events']:
+                self.events[event_data['id']] = event_data
+
+        # Create all areas:
+        if 'areas' in data:
+            for area_data in data['areas']:
+                with show_data_on_error('area_data', area_data):
+                    self.update_area(area_data)
 
         # Do one pass through the organizations:
         org_id_to_django_object = {}
@@ -189,14 +205,15 @@ class PopItImporter(object):
             self.create_identifier('organization', org_data['id'], result)
 
         # Update other identifiers:
-        self.update_related_objects(
-            Organization,
-            self.get_popolo_model_class('Identifier'),
-            self.make_identifier_dict,
-            org_data['identifiers'],
-            result,
-            preserve_predicate=lambda i: i.scheme == 'popit-organization',
-        )
+        if 'identifiers' in org_data:
+            self.update_related_objects(
+                Organization,
+                self.get_popolo_model_class('Identifier'),
+                self.make_identifier_dict,
+                org_data['identifiers'],
+                result,
+                preserve_predicate=lambda i: i.scheme == 'popit-organization',
+            )
         # Update contact details:
         self.update_related_objects(
             Organization,
@@ -309,14 +326,15 @@ class PopItImporter(object):
             result
         )
         # Update other identifiers:
-        self.update_related_objects(
-            Person,
-            self.get_popolo_model_class('Identifier'),
-            self.make_identifier_dict,
-            person_data['identifiers'],
-            result,
-            preserve_predicate=lambda i: i.scheme == 'popit-person',
-        )
+        if 'identifiers' in person_data:
+            self.update_related_objects(
+                Person,
+                self.get_popolo_model_class('Identifier'),
+                self.make_identifier_dict,
+                person_data['identifiers'],
+                result,
+                preserve_predicate=lambda i: i.scheme == 'popit-person',
+            )
         # Update contact details:
         self.update_related_objects(
             Person,
@@ -351,7 +369,22 @@ class PopItImporter(object):
             post_id_to_django_object,
             person_id_to_django_object,
     ):
+        def generate_membership_id(membership_data):
+            #construct an 'id' based on data that should be unique_together
+            new_id = ''
+            new_id += membership_data.get('legislative_period_id', 'missing') + "_"
+            new_id += membership_data.get('organization_id', 'missing') + "_"
+            new_id += membership_data.get('area_id', 'missing') + "_"
+            new_id += membership_data.get('role', 'missing') + "_"
+            new_id += membership_data.get('on_behalf_of_id', 'missing') + "_"
+            new_id += membership_data.get('person_id', 'missing')
+            return new_id
+
         Membership = self.get_popolo_model_class('Membership')
+
+        if 'id' not in membership_data:
+            membership_data['id'] = generate_membership_id(membership_data)
+
         existing = self.get_existing_django_object('membership', membership_data['id'])
         if existing is None:
             result = Membership()
@@ -372,6 +405,11 @@ class PopItImporter(object):
         result.area = area
         result.start_date = membership_data.get('start_date', '')
         result.end_date = membership_data.get('end_date', '')
+        if 'legislative_period_id' in membership_data:
+            period_data = self.events[membership_data['legislative_period_id']]
+            result.start_date = period_data.get('start_date', '')
+            result.end_date = period_data.get('end_date', '')
+
         result.save()
         # Create an identifier with the PopIt ID:
         if not existing:
