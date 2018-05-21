@@ -22,10 +22,57 @@ from django.dispatch import receiver
 
 from .behaviors.models import Timestampable, Dateframeable, GenericRelatable
 from .querysets import PostQuerySet, OtherNameQuerySet, ContactDetailQuerySet, MembershipQuerySet, OrganizationQuerySet, PersonQuerySet
+from django.forms.models import model_to_dict
+from simple_history.models import HistoricalRecords
+
+
+class ModelDiffMixin(object):
+    """
+    https://stackoverflow.com/a/13842223/1305080
+    A model mixin that tracks model fields' values and provide some useful api
+    to know what fields have been changed.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(ModelDiffMixin, self).__init__(*args, **kwargs)
+        self.__initial = self._dict
+
+    @property
+    def diff(self):
+        d1 = self.__initial
+        d2 = self._dict
+        diffs = [(k, (v, d2[k])) for k, v in d1.items() if v != d2[k]]
+        return dict(diffs)
+
+    @property
+    def has_changed(self):
+        return bool(self.diff)
+
+    @property
+    def changed_fields(self):
+        return self.diff.keys()
+
+    def get_field_diff(self, field_name):
+        """
+        Returns a diff for field if it's changed and None otherwise.
+        """
+        return self.diff.get(field_name, None)
+
+    def save(self, *args, **kwargs):
+        """
+        Saves model and set initial state.
+        """
+        super(ModelDiffMixin, self).save(*args, **kwargs)
+        self.__initial = self._dict
+
+    @property
+    def _dict(self):
+        return model_to_dict(self, fields=[field.name for field in
+                             self._meta.fields])
 
 
 @python_2_unicode_compatible
-class Person(Dateframeable, Timestampable, models.Model):
+class Person(Dateframeable, Timestampable, ModelDiffMixin, models.Model):
     """
     A real person, alive or dead
     see schema at http://popoloproject.com/schemas/person.json#
@@ -67,6 +114,8 @@ class Person(Dateframeable, Timestampable, models.Model):
     # array of items referencing "http://popoloproject.com/schemas/link.json#"
     sources = GenericRelation('Source', help_text="URLs to source documents about the person")
 
+    history = HistoricalRecords()
+
     class Meta:
         verbose_name_plural="People"
 
@@ -99,8 +148,9 @@ class Person(Dateframeable, Timestampable, models.Model):
     def __str__(self):
         return self.name
 
+
 @python_2_unicode_compatible
-class Organization(Dateframeable, Timestampable, models.Model):
+class Organization(Dateframeable, Timestampable, ModelDiffMixin, models.Model):
     """
     A group with a common purpose or reason for existence that goes beyond the set of people belonging to it
     see schema at http://popoloproject.com/schemas/organization.json#
@@ -150,6 +200,8 @@ class Organization(Dateframeable, Timestampable, models.Model):
     # array of items referencing "http://popoloproject.com/schemas/link.json#"
     sources = GenericRelation('Source', help_text="URLs to source documents about the organization")
 
+    history = HistoricalRecords()
+
     try:
         # PassTrhroughManager was removed in django-model-utils 2.4, see issue #22
         objects = PassThroughManager.for_queryset_class(OrganizationQuerySet)()
@@ -175,8 +227,9 @@ class Organization(Dateframeable, Timestampable, models.Model):
     def __str__(self):
         return self.name
 
+
 @python_2_unicode_compatible
-class Post(Dateframeable, Timestampable, models.Model):
+class Post(Dateframeable, Timestampable, ModelDiffMixin, models.Model):
     """
     A position that exists independent of the person holding it
     see schema at http://popoloproject.com/schemas/json#
@@ -204,6 +257,8 @@ class Post(Dateframeable, Timestampable, models.Model):
     # array of items referencing "http://popoloproject.com/schemas/link.json#"
     sources = GenericRelation('Source', help_text="URLs to source documents about the post")
 
+    history = HistoricalRecords()
+
     try:
         # PassTrhroughManager was removed in django-model-utils 2.4, see issue #22
         objects = PassThroughManager.for_queryset_class(PostQuerySet)()
@@ -218,7 +273,7 @@ class Post(Dateframeable, Timestampable, models.Model):
         return self.label
 
 @python_2_unicode_compatible
-class Membership(Dateframeable, Timestampable, models.Model):
+class Membership(Dateframeable, Timestampable, ModelDiffMixin, models.Model):
     """
     A relationship between a person and an organization
     see schema at http://popoloproject.com/schemas/membership.json#
@@ -256,6 +311,8 @@ class Membership(Dateframeable, Timestampable, models.Model):
     # array of items referencing "http://popoloproject.com/schemas/link.json#"
     sources = GenericRelation('Source', help_text="URLs to source documents about the membership")
 
+    history = HistoricalRecords()
+
     try:
         # PassTrhroughManager was removed in django-model-utils 2.4, see issue #22
         objects = PassThroughManager.for_queryset_class(MembershipQuerySet)()
@@ -266,7 +323,7 @@ class Membership(Dateframeable, Timestampable, models.Model):
         return self.label
 
 @python_2_unicode_compatible
-class ContactDetail(Timestampable, Dateframeable, GenericRelatable,  models.Model):
+class ContactDetail(Timestampable, Dateframeable, GenericRelatable, ModelDiffMixin, models.Model):
     """
     A means of contacting an entity
     see schema at http://popoloproject.com/schemas/contact-detail.json#
@@ -298,6 +355,8 @@ class ContactDetail(Timestampable, Dateframeable, GenericRelatable,  models.Mode
     # array of items referencing "http://popoloproject.com/schemas/link.json#"
     sources = GenericRelation('Source', help_text="URLs to source documents about the contact detail")
 
+    history = HistoricalRecords()
+
     try:
         # PassTrhroughManager was removed in django-model-utils 2.4, see issue #22
         objects = PassThroughManager.for_queryset_class(ContactDetailQuerySet)()
@@ -309,13 +368,15 @@ class ContactDetail(Timestampable, Dateframeable, GenericRelatable,  models.Mode
 
 
 @python_2_unicode_compatible
-class OtherName(Dateframeable, GenericRelatable, models.Model):
+class OtherName(Dateframeable, GenericRelatable, ModelDiffMixin, models.Model):
     """
     An alternate or former name
     see schema at http://popoloproject.com/schemas/name-component.json#
     """
     name = models.CharField(_("name"), max_length=512, help_text=_("An alternate or former name"))
     note = models.CharField(_("note"), max_length=1024, blank=True, help_text=_("A note, e.g. 'Birth name'"))
+
+    history = HistoricalRecords()
 
     try:
         # PassTrhroughManager was removed in django-model-utils 2.4, see issue #22
@@ -328,7 +389,7 @@ class OtherName(Dateframeable, GenericRelatable, models.Model):
 
 
 @python_2_unicode_compatible
-class Identifier(GenericRelatable, models.Model):
+class Identifier(GenericRelatable, ModelDiffMixin, models.Model):
     """
     An issued identifier
     see schema at http://popoloproject.com/schemas/identifier.json#
@@ -336,12 +397,14 @@ class Identifier(GenericRelatable, models.Model):
     identifier = models.CharField(_("identifier"), max_length=512, help_text=_("An issued identifier, e.g. a DUNS number"))
     scheme = models.CharField(_("scheme"), max_length=128, blank=True, help_text=_("An identifier scheme, e.g. DUNS"))
 
+    history = HistoricalRecords()
+
     def __str__(self):
         return "{0}: {1}".format(self.scheme, self.identifier)
 
 
 @python_2_unicode_compatible
-class Link(GenericRelatable, models.Model):
+class Link(GenericRelatable, ModelDiffMixin, models.Model):
     """
     A URL
     see schema at http://popoloproject.com/schemas/link.json#
@@ -349,12 +412,14 @@ class Link(GenericRelatable, models.Model):
     url = models.URLField(_("url"), max_length=350, help_text=_("A URL"))
     note = models.CharField(_("note"), max_length=512, blank=True, help_text=_("A note, e.g. 'Wikipedia page'"))
 
+    history = HistoricalRecords()
+
     def __str__(self):
         return self.url
 
 
 @python_2_unicode_compatible
-class Source(GenericRelatable, models.Model):
+class Source(GenericRelatable, ModelDiffMixin, models.Model):
     """
     A URL for referring to sources of information
     see schema at http://popoloproject.com/schemas/link.json#
@@ -362,13 +427,14 @@ class Source(GenericRelatable, models.Model):
     url = models.URLField(_("url"), help_text=_("A URL"))
     note = models.CharField(_("note"), max_length=512, blank=True, help_text=_("A note, e.g. 'Parliament website'"))
 
+    history = HistoricalRecords()
+
     def __str__(self):
         return self.url
 
 
-
 @python_2_unicode_compatible
-class Language(models.Model):
+class Language(ModelDiffMixin, models.Model):
     """
     Maps languages, with names and 2-char iso 639-1 codes.
     Taken from http://dbpedia.org, using a sparql query
@@ -379,11 +445,14 @@ class Language(models.Model):
     name = models.CharField(max_length=128,
         help_text=_("English name of the language"))
 
+    history = HistoricalRecords()
+
     def __str__(self):
         return u"{0} ({1})".format(self.name, self.iso639_1_code)
 
+
 @python_2_unicode_compatible
-class Area(GenericRelatable, Dateframeable, Timestampable, models.Model):
+class Area(GenericRelatable, Dateframeable, Timestampable, ModelDiffMixin, models.Model):
     """
     An area is a geographic area whose geometry may change over time.
     see schema at http://popoloproject.com/schemas/area.json#
@@ -409,11 +478,14 @@ class Area(GenericRelatable, Dateframeable, Timestampable, models.Model):
     # array of items referencing "http://popoloproject.com/schemas/link.json#"
     sources = GenericRelation('Source', blank=True, null=True, help_text="URLs to source documents about the contact detail")
 
+    history = HistoricalRecords()
+
     def __str__(self):
         return self.name
 
+
 @python_2_unicode_compatible
-class AreaI18Name(models.Model):
+class AreaI18Name(ModelDiffMixin, models.Model):
     """
     Internationalized name for an Area.
     Contains references to language and area.
@@ -421,6 +493,8 @@ class AreaI18Name(models.Model):
     area = models.ForeignKey('Area', related_name='i18n_names')
     language = models.ForeignKey('Language')
     name = models.CharField(_("name"), max_length=255)
+
+    history = HistoricalRecords()
 
     def __str__(self):
         return "{0} - {1}".format(self.language, self.name)

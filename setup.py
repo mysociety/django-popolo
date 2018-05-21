@@ -40,5 +40,6 @@ setup(
     tests_require=['fake-factory'],
     install_requires=[
         "django-model-utils",
+        "django-simple-history==2.0",
     ],
 )

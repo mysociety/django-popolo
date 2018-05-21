@@ -138,6 +138,14 @@ class PopoloJSONImporter(object):
             django_object, field_name, value)
         setattr(django_object, field_name, possibly_truncated_value)
 
+    def save(self, django_object):
+        if django_object.has_changed:
+            django_object.changeReason = json.dumps({
+                'source': self.popolo_source.url,
+                'type': 'automated',
+            })
+            django_object.save()
+
     def import_from_export_json_data(self, data):
         """Update or create django-popolo models from a PopIt export
 
@@ -198,7 +206,7 @@ class PopoloJSONImporter(object):
                 if parent_id:
                     org_parent = org_id_to_django_object[parent_id]
                     self.set(org, 'parent', org_parent)
-                    org.save()
+                    self.save(org)
         # Create all posts (dependent on organizations already existing)
         post_id_to_django_object = {}
         for post_data in data.get('posts', []):
@@ -238,7 +246,7 @@ class PopoloJSONImporter(object):
             area = area_id_to_django_object[area_id]
             parent_area = area_id_to_django_object[parent_area_id]
             self.set(area, 'parent', parent_area)
-            area.save()
+            self.save(area)
 
     def import_from_export_json(self, json_filename):
         """Update or create django-popolo models from a PopIt export
@@ -283,7 +291,7 @@ class PopoloJSONImporter(object):
         self.set(result, 'founding_date', org_data.get('founding_date', ''))
         self.set(result, 'image', org_data.get('image') or None)
         self.set(result, 'area', area)
-        result.save()
+        self.save(result)
         # Create an identifier with the PopIt ID:
         if not existing:
             self.create_identifier('organization', org_data['id'], result)
@@ -296,14 +304,23 @@ class PopoloJSONImporter(object):
             org_data.get('identifiers', []),
             result,
         )
+
         # Update contact details:
+        model_class = self.get_popolo_model_class('ContactDetail')
+        type_choices = model_class._meta.get_field('contact_type').choices
+        choice_values = [c[0].lower() for c in type_choices]
+        contact_details = org_data.get('contact_details', [])
+
+        def valid_filter(c): return c['type'] in choice_values
+        valid_contact_details = filter(valid_filter, contact_details)
         self.update_related_objects(
             Organization,
-            self.get_popolo_model_class('ContactDetail'),
+            model_class,
             self.make_contact_detail_dict,
-            org_data.get('contact_details', []),
+            valid_contact_details,
             result
         )
+
         # Update links:
         self.update_related_objects(
             Organization,
@@ -342,16 +359,24 @@ class PopoloJSONImporter(object):
         self.set(result, 'role', post_data['role'])
         self.set(result, 'organization', org_id_to_django_object[post_data['organization_id']])
         self.set(result, 'area', area)
-        result.save()
+        self.save(result)
         # Create an identifier with the PopIt ID:
         if not existing:
             self.create_identifier('post', post_data['id'], result)
+
         # Update contact details:
+        model_class = self.get_popolo_model_class('ContactDetail')
+        type_choices = model_class._meta.get_field('contact_type').choices
+        choice_values = [c[0].lower() for c in type_choices]
+        contact_details = post_data.get('contact_details', [])
+
+        def valid_filter(c): return c['type'] in choice_values
+        valid_contact_details = filter(valid_filter, contact_details)
         self.update_related_objects(
             Post,
-            self.get_popolo_model_class('ContactDetail'),
+            model_class,
             self.make_contact_detail_dict,
-            post_data.get('contact_details', []),
+            valid_contact_details,
             result
         )
         # Update links:
@@ -380,6 +405,9 @@ class PopoloJSONImporter(object):
             result = Person()
         else:
             result = existing
+        summary = person_data.get('summary')
+        if summary and len(summary) > 1024:
+            summary = summary[:1010] + "...(truncated)"
         self.set(result, 'name', person_data['name'])
         self.set(result, 'family_name', person_data.get('family_name') or '')
         self.set(result, 'given_name', person_data.get('given_name') or '')
@@ -392,11 +420,13 @@ class PopoloJSONImporter(object):
         self.set(result, 'gender', person_data.get('gender') or '')
         self.set(result, 'birth_date', person_data.get('birth_date') or '')
         self.set(result, 'death_date', person_data.get('death_date') or '')
-        self.set(result, 'summary', person_data.get('summary') or '')
+        self.set(result, 'summary', summary or '')
         self.set(result, 'biography', person_data.get('biography') or '')
         self.set(result, 'national_identity', person_data.get('national_identity') or None)
         self.set(result, 'image', person_data.get('image') or None)
-        result.save()
+
+        self.save(result)
+
         # Create an identifier with the PopIt ID:
         if not existing:
             self.create_identifier('person', person_data['id'], result)
@@ -417,14 +447,23 @@ class PopoloJSONImporter(object):
             person_data.get('identifiers', []),
             result,
         )
+
         # Update contact details:
+        model_class = self.get_popolo_model_class('ContactDetail')
+        type_choices = model_class._meta.get_field('contact_type').choices
+        choice_values = [c[0].lower() for c in type_choices]
+        contact_details = person_data.get('contact_details', [])
+
+        def valid_filter(c): return c['type'] in choice_values
+        valid_contact_details = filter(valid_filter, contact_details)
         self.update_related_objects(
             Person,
-            self.get_popolo_model_class('ContactDetail'),
+            model_class,
             self.make_contact_detail_dict,
-            person_data.get('contact_details', []),
+            valid_contact_details,
             result
         )
+
         # Update links:
         self.update_related_objects(
             Person,
@@ -505,17 +544,24 @@ class PopoloJSONImporter(object):
             if not result.end_date:
                 self.set(result, 'end_date', period_data.get('end_date', ''))
 
-        result.save()
+        self.save(result)
         # Create an identifier with the PopIt ID:
         if not existing:
             self.create_identifier('membership', membership_data['id'], result)
 
         # Update contact details:
+        model_class = self.get_popolo_model_class('ContactDetail')
+        type_choices = model_class._meta.get_field('contact_type').choices
+        choice_values = [c[0].lower() for c in type_choices]
+        contact_details = membership_data.get('contact_details', [])
+
+        def valid_filter(c): return c['type'] in choice_values
+        valid_contact_details = filter(valid_filter, contact_details)
         self.update_related_objects(
             Membership,
-            self.get_popolo_model_class('ContactDetail'),
+            model_class,
             self.make_contact_detail_dict,
-            membership_data.get('contact_details', []),
+            valid_contact_details,
             result
         )
         # Update links:
@@ -549,7 +595,7 @@ class PopoloJSONImporter(object):
         self.set(result, 'classification', area_data.get('classification') or '')
         self.set(result, 'geom', area_data.get('geom') or None)
         self.set(result, 'inhabitants', area_data.get('inhabitants'))
-        result.save()
+        self.save(result)
         # Create an identifier with the PopIt ID:
         if not existing:
             self.create_identifier('area', area_data['id'], result)
@@ -579,12 +625,17 @@ class PopoloJSONImporter(object):
             ))
         ContentType = self.get_model_class('contenttypes', 'ContentType')
         content_type = ContentType.objects.get_for_model(django_object)
-        self.get_popolo_model_class('Identifier').objects.create(
+        instance = self.get_popolo_model_class('Identifier')(
             object_id=django_object.id,
             content_type_id=content_type.id,
             scheme=(self.id_prefix + popit_collection),
             identifier=popit_id,
         )
+        instance.changeReason = json.dumps({
+            'source': self.popolo_source.url,
+            'type': 'automated',
+        })
+        instance.save()
 
     def should_preserve_related(self, django_main_model, related_object):
         # We only have rules for preserving identifiers, so ignore
@@ -631,9 +682,13 @@ class PopoloJSONImporter(object):
             if existing.exists():
                 old_objects_to_preserve += existing
             else:
-                new_objects.append(
-                    django_related_model.objects.create(**wanted_attributes)
-                )
+                instance = django_related_model(**wanted_attributes)
+                instance.changeReason = json.dumps({
+                    'source': self.popolo_source.url,
+                    'type': 'automated',
+                })
+                instance.save()
+                new_objects.append(instance)
         object_ids_to_preserve = set(c.id for c in new_objects)
         object_ids_to_preserve.update(c.id for c in old_objects_to_preserve)
         django_related_model.objects.filter(
